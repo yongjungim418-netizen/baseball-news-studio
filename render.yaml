@@ -1,4 +1,4 @@
-# services:
+services:
   - type: web
     name: baseball-news-studio
     runtime: docker
@@ -10,6 +10,4 @@
       - key: SECRET_KEY
         generateValue: true
       - key: CHANNEL_NAME
-        sync: false
-      - key: ANTHROPIC_API_KEY
         sync: false
