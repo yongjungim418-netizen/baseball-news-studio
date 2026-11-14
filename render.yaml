@@ -1,0 +1,22 @@
+# Render 블루프린트: GitHub 저장소 연결 후 "Blueprint"로 배포하면 이 설정이 그대로 적용됩니다.
+services:
+  - type: web
+    name: baseball-news-studio
+    runtime: docker
+    plan: starter            # 영구 디스크와 24시간 상시 실행이 필요해서 유료 플랜
+    healthCheckPath: /healthz
+    disk:
+      name: studio-data
+      mountPath: /data
+      sizeGB: 2
+    envVars:
+      - key: ADMIN_PASSWORD
+        sync: false          # 배포 화면에서 직접 입력
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CHANNEL_NAME
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false          # 선택 (요약 품질)
+      - key: AUTO_DAILY
+        value: "1"

@@ -1,0 +1,93 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Baseball News Studio</title>
+<style>
+:root{--navy:#0b1b33;--navy2:#142848;--line:#34496e;--or:#ff7a1a;--mut:#96a8c4;--soft:#dee6f2}
+*{box-sizing:border-box}body{margin:0;background:var(--navy);color:#fff;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;line-height:1.5}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 60px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+header h1{font-size:18px;margin:0}header a{color:var(--mut);font-size:14px}
+h2{font-size:16px;margin:28px 0 10px}
+button,.btn{display:inline-block;border:0;border-radius:10px;padding:13px 16px;font-size:15px;font-weight:700;background:var(--or);color:var(--navy);text-decoration:none;cursor:pointer}
+button.sub,.btn.sub{background:var(--navy2);color:#fff;border:1px solid var(--line)}
+button:disabled{opacity:.5}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.job{background:var(--navy2);border-left:4px solid var(--or);padding:12px 14px;border-radius:8px;margin:14px 0}
+.item{background:var(--navy2);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.item img{width:100%;display:block}
+.meta{padding:12px 14px;display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:14px;color:var(--soft)}
+.meta a{color:var(--mut)}
+.meta button{padding:9px 12px;font-size:13px}
+video{width:100%;border-radius:12px;background:#000;max-height:70vh}
+textarea{width:100%;min-height:200px;background:var(--navy2);color:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:14px;font-family:inherit}
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;background:var(--or);color:var(--navy);font-size:13px;font-weight:700}
+.empty{color:var(--mut);padding:30px 0;text-align:center}
+</style></head><body><div class="wrap">
+<header><h1>Baseball News Studio</h1><a href="/logout">로그아웃</a></header>
+
+<div class="row">
+  <button id="run">오늘 뉴스 만들기</button>
+  <button id="demo" class="sub">샘플로 테스트</button>
+</div>
+
+<div id="job" class="job" {% if not job.running and not job.error %}hidden{% endif %}>
+  {% if job.error %}오류: {{ job.error }}{% else %}{{ job.msg }}{% endif %}
+</div>
+{% if not job.running and job.msg and not job.error %}<div class="job">{{ job.msg }}</div>{% endif %}
+
+{% if items %}
+  <h2>{{ date }} 카드뉴스 {{ items|length }}장
+    {% if status == 'approved' %}<span class="badge">승인됨</span>{% endif %}</h2>
+  {% for it in items %}
+  <div class="item">
+    <img src="/media/{{ date }}/card_{{ loop.index }}.png?v={{ v }}" alt="카드 {{ loop.index }}" loading="lazy">
+    <div class="meta">
+      <span>{{ it.league }} · <a href="{{ it.url }}" target="_blank" rel="noopener">원문 보기</a></span>
+      <button class="sub" onclick="replaceItem({{ it.id }})">다른 뉴스로 교체</button>
+    </div>
+  </div>
+  {% endfor %}
+
+  <h2>요약 릴스</h2>
+  <video controls playsinline src="/media/{{ date }}/reel.mp4?v={{ v }}"></video>
+
+  <h2>인스타 캡션</h2>
+  <textarea id="cap" readonly>{{ caption }}</textarea>
+  <div class="row" style="margin-top:8px"><button class="sub" onclick="copyCap()">캡션 복사</button></div>
+
+  <h2>승인 · 내려받기</h2>
+  <div class="row">
+    <button id="approve" {% if status == 'approved' %}disabled{% endif %}>
+      {% if status == 'approved' %}승인 완료{% else %}내용 확인 후 승인{% endif %}</button>
+    <a class="btn sub" href="/download/{{ date }}">카드 + 릴스 ZIP 받기</a>
+  </div>
+{% else %}
+  <div class="empty">아직 오늘 만든 카드뉴스가 없습니다.<br>위 버튼을 눌러 만들어보세요.</div>
+{% endif %}
+</div>
+
+<script>
+const running = {{ 'true' if job.running else 'false' }};
+async function post(url, body){ return fetch(url,{method:'POST',body}).then(r=>r.json()); }
+function poll(){
+  const j=document.getElementById('job'); j.hidden=false;
+  const t=setInterval(async()=>{
+    const s=await fetch('/api/status').then(r=>r.json());
+    j.textContent=s.error?('오류: '+s.error):s.msg;
+    if(!s.running){clearInterval(t);location.reload();}
+  },2000);
+}
+async function start(url,body){
+  document.querySelectorAll('button').forEach(b=>b.disabled=true);
+  const r=await post(url,body);
+  if(!r.started) alert('이미 작업이 진행 중입니다.');
+  poll();
+}
+document.getElementById('run').onclick=()=>start('/api/run',new URLSearchParams({demo:'0'}));
+document.getElementById('demo').onclick=()=>start('/api/run',new URLSearchParams({demo:'1'}));
+function replaceItem(id){ if(confirm('이 뉴스를 빼고 다른 뉴스로 교체할까요?')) start('/api/replace/'+id); }
+const ap=document.getElementById('approve');
+if(ap) ap.onclick=async()=>{await post('/api/approve');location.reload();};
+function copyCap(){navigator.clipboard.writeText(document.getElementById('cap').value);alert('캡션을 복사했어요.');}
+if(running) poll();
+</script></body></html>

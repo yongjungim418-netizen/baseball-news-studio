@@ -1,0 +1,14 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Baseball News Studio</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1b33;color:#fff;font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif}
+form{width:min(340px,88vw)}h1{font-size:22px;margin:0 0 20px}
+input,button{width:100%;box-sizing:border-box;padding:14px;border-radius:10px;border:0;font-size:16px;margin-bottom:10px}
+input{background:#142848;color:#fff}button{background:#ff7a1a;color:#0b1b33;font-weight:700}
+.e{color:#ffb27a;font-size:14px;margin-bottom:10px}
+</style></head><body>
+<form method="post"><h1>Baseball News Studio</h1>
+{% if err %}<div class="e">{{ err }}</div>{% endif %}
+<input type="password" name="password" placeholder="관리자 비밀번호" autofocus>
+<button>로그인</button></form></body></html>
