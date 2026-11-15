@@ -9,7 +9,7 @@ DB_PATH = DATA_DIR / "studio.db"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 TZ = "Asia/Seoul"
-CHANNEL_NAME = os.getenv("CHANNEL_NAME", "@내_야구_채널")   # 카드/릴스 하단에 표시
+CHANNEL_NAME = os.getenv("CHANNEL_NAME", "@hanwha_kimyongjun0315")   # 카드/릴스 하단에 표시
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "change-me")   # 관리자 로그인 비밀번호
 SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret")
 
@@ -20,6 +20,9 @@ if os.getenv("PORT") and ADMIN_PASSWORD == "change-me":
 # 매일 자동 실행 (서버가 계속 켜져 있어야 함). 켜려면 AUTO_DAILY=1
 AUTO_DAILY = os.getenv("AUTO_DAILY", "0") == "1"
 DAILY_HOUR, DAILY_MINUTE = 7, 30
+
+# 카드에 요약 줄을 넣을지 여부. 기본은 제목만 크게 (켜려면 SHOW_SUMMARY=1)
+SHOW_SUMMARY = os.getenv("SHOW_SUMMARY", "0") == "1"
 
 CARDS_PER_DAY = 5
 QUOTA = {"KBO": 2, "MLB": 2, "NPB": 1}   # 리그별 기본 개수 (부족하면 다른 리그로 채움)

@@ -1,10 +1,31 @@
 """카드용 한국어 요약. ANTHROPIC_API_KEY 가 있으면 Claude 로, 없으면 RSS 문구 그대로 사용."""
+import difflib
 import json
 import os
 import re
 import urllib.request
 
 import config
+
+
+def _norm(t):
+    return re.sub(r"[\s\W_]+", "", t or "").lower()
+
+
+def is_dup(title, line):
+    """요약 줄이 제목과 같거나(제목+매체명 포함) 거의 비슷하면 True"""
+    a, b = _norm(title), _norm(line)
+    if not a or not b:
+        return True
+    return a in b or b in a or difflib.SequenceMatcher(None, a, b).ratio() > 0.6
+
+
+def clean_lines(title, lines):
+    out = []
+    for ln in lines or []:
+        if not is_dup(title, ln) and all(not is_dup(o, ln) for o in out):
+            out.append(ln)
+    return out[:3]
 
 
 def _fallback(title, snippet):
@@ -16,7 +37,7 @@ def _fallback(title, snippet):
                 lines.append(s[:70])
             if len(lines) == 3:
                 break
-    return {"title": title, "lines": lines}
+    return {"title": title, "lines": clean_lines(title, lines)}
 
 
 def summarize(title, snippet, source):
@@ -40,6 +61,7 @@ def summarize(title, snippet, source):
         with urllib.request.urlopen(req, timeout=40) as r:
             text = json.loads(r.read())["content"][0]["text"]
         data = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
-        return {"title": data.get("title") or title, "lines": [str(x) for x in data.get("lines", [])][:3]}
+        new_title = data.get("title") or title
+        return {"title": new_title, "lines": clean_lines(new_title, [str(x) for x in data.get("lines", [])])}
     except Exception:
         return _fallback(title, snippet)
