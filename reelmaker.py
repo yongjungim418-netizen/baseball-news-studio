@@ -11,6 +11,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+import art
 import cardmaker as cm
 import config
 
@@ -20,38 +21,51 @@ ENC = ["-preset", "ultrafast", "-tune", "stillimage", "-crf", "22",
        "-x264-params", "ref=1:rc-lookahead=0:bframes=0:threads=1"]
 
 
-def _frame_base():
-    img = Image.new("RGB", (RW, RH), cm.NAVY)
-    ImageDraw.Draw(img).rectangle([0, 0, 18, RH], fill=cm.ORANGE)
-    return img
-
-
 def _centered(d, text, f, y, fill):
     d.text(((RW - f.getlength(text)) / 2, y), text, font=f, fill=fill)
 
 
+def _scene_bg(league, idx, fh):
+    """일러스트 배경 + 아래쪽을 어둡게 덮어 글자가 잘 보이게"""
+    img = art.render_scene(RW, RH, league, idx, fh=fh)
+    fade = Image.linear_gradient("L").resize((RW, 700))
+    img.paste(Image.new("RGB", (RW, 700), art.BG), (0, int(fh * 0.55)), fade)
+    img.paste(Image.new("RGB", (RW, RH - int(fh * 0.55) - 700), art.BG), (0, int(fh * 0.55) + 700))
+    return img
+
+
 def intro_frame(items, date_label):
-    img = _frame_base()
-    d = ImageDraw.Draw(img)
-    _centered(d, "BASEBALL NEWS STUDIO", cm.font(34), 360, cm.MUTED)
-    _centered(d, "오늘의 야구 뉴스", cm.font(104), 470, cm.WHITE)
-    d.rectangle([RW / 2 - 70, 650, RW / 2 + 70, 660], fill=cm.ORANGE)
-    _centered(d, f"{date_label} TOP {len(items)}", cm.font(60), 710, cm.ORANGE)
-    y = 900
+    img = _scene_bg("KBO", 3, 1100)
+    d = ImageDraw.Draw(img, "RGBA")
+    acc = art.pal("KBO")["accent"]
+    _centered(d, "BASEBALL NEWS", cm.font(36), 330, (255, 255, 255, 210))
+    _centered(d, "오늘의 야구 뉴스", cm.font(112), 700, cm.WHITE)
+    label = f"{date_label}  TOP {len(items)}"
+    lf = cm.font(46)
+    lw = int(lf.getlength(label)) + 80
+    d.rounded_rectangle([(RW - lw) / 2, 868, (RW + lw) / 2, 948], radius=40, fill=acc + (255,))
+    _centered(d, label, lf, 876, art.BG)
+    y = 1060
     for it in items:
-        label = f'{it["league"]}  {it["title"]}'
-        f = cm.font(36, bold=False)
-        while f.getlength(label) > RW - 200 and len(label) > 6:
-            label = label[:-2] + "…"
-        _centered(d, label, f, y, cm.SOFT)
-        y += 78
+        a = art.pal(it["league"])["accent"]
+        cf = cm.font(30)
+        cw = int(cf.getlength(it["league"])) + 36
+        d.rounded_rectangle([90, y, 90 + cw, y + 50], radius=25, fill=a + (255,))
+        d.text((90 + 18, y + 5), it["league"], font=cf, fill=art.BG)
+        tf = cm.font(36, bold=False)
+        d.text((90 + cw + 22, y + 3), cm._fit(it["title"], tf, RW - 180 - cw - 22), font=tf, fill=cm.SOFT)
+        y += 84
     return img
 
 
 def card_frame(card_img, idx, total):
-    img = _frame_base()
-    d = ImageDraw.Draw(img)
+    img = Image.new("RGB", (RW, RH), art.BG)
     img.paste(card_img, (0, 285))
+    top = Image.linear_gradient("L").resize((RW, 110))                    # 카드 윗부분을 배경에 부드럽게 연결
+    base_top = Image.new("RGB", (RW, 110), art.BG)
+    base_top.paste(card_img.crop((0, 0, RW, 110)), (0, 0), top)
+    img.paste(base_top, (0, 285))
+    d = ImageDraw.Draw(img, "RGBA")
     _centered(d, f"오늘의 야구 뉴스  {idx}/{total}", cm.font(40), 150, cm.WHITE)
     seg_w = (RW - 200 - (total - 1) * 16) / total
     for i in range(total):
@@ -62,11 +76,15 @@ def card_frame(card_img, idx, total):
 
 
 def outro_frame():
-    img = _frame_base()
-    d = ImageDraw.Draw(img)
-    _centered(d, "내일도 야구 소식", cm.font(88), 700, cm.WHITE)
-    _centered(d, "저장하고 팔로우하세요", cm.font(60), 840, cm.ORANGE)
-    _centered(d, config.CHANNEL_NAME, cm.font(48, bold=False), 960, cm.SOFT)
+    img = _scene_bg("KBO", 2, 700)
+    d = ImageDraw.Draw(img, "RGBA")
+    acc = art.pal("KBO")["accent"]
+    _centered(d, "내일도 야구 소식", cm.font(100), 780, cm.WHITE)
+    _centered(d, "저장하고 팔로우하세요", cm.font(58), 940, acc)
+    hf = cm.font(48, bold=False)
+    hw = int(hf.getlength(config.CHANNEL_NAME)) + 100
+    d.rounded_rectangle([(RW - hw) / 2, 1080, (RW + hw) / 2, 1166], radius=43, outline=acc + (255,), width=3)
+    _centered(d, config.CHANNEL_NAME, hf, 1092, cm.SOFT)
     return img
 
 
