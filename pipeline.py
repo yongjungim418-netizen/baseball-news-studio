@@ -9,6 +9,7 @@ import cardmaker
 import collector
 import config
 import db
+import quality
 import reelmaker
 import summarizer
 
@@ -66,6 +67,8 @@ def select(date, reset=False):
             age = (now - datetime.fromisoformat(r["published"])).total_seconds() / 3600
             if age > config.MAX_AGE_HOURS:
                 continue
+            if quality.is_junk(r["title"], r["source"]):
+                continue
             if any(_sim(r["title"], t) > 0.6 for t in past):
                 continue
             cands.append((r, age))
@@ -77,27 +80,43 @@ def select(date, reset=False):
             for cl in clusters:
                 if _sim(r["title"], cl["row"]["title"]) > 0.55:
                     cl["n"] += 1
+                    if quality.source_bonus(r["source"]) > quality.source_bonus(cl["row"]["source"]):
+                        cl["row"] = r
                     break
             else:
                 clusters.append({"row": r, "n": 1, "age": age})
         for cl in clusters:
-            cl["score"] = cl["n"] * 10 - cl["age"] * 0.2
+            cl["score"] = cl["n"] * 10 - cl["age"] * 0.2 + quality.bonus(cl["row"]["title"], cl["row"]["source"])
         clusters.sort(key=lambda x: -x["score"])
 
         taken = {x["title"] for x in existing}
         picks = []
         have = {lg: sum(1 for x in existing if x["league"] == lg) for lg in config.QUOTA}
+        src_n = {}
+        for x in existing:
+            src_n[x["source"]] = src_n.get(x["source"], 0) + 1
+
+        def add(cl):
+            picks.append(cl)
+            src_n[cl["row"]["source"]] = src_n.get(cl["row"]["source"], 0) + 1
+
+        def ok(cl, strict):
+            r = cl["row"]
+            return (cl not in picks and r["title"] not in taken
+                    and (not strict or src_n.get(r["source"], 0) < 2))
+
         for lg, q in config.QUOTA.items():
             for cl in clusters:
                 if len(picks) >= need or have.get(lg, 0) >= q:
                     break
-                if cl["row"]["league"] == lg and cl["row"]["title"] not in taken and cl not in picks:
-                    picks.append(cl); have[lg] = have.get(lg, 0) + 1
-        for cl in clusters:  # 부족하면 점수순으로 채움
-            if len(picks) >= need:
-                break
-            if cl not in picks and cl["row"]["title"] not in taken:
-                picks.append(cl)
+                if cl["row"]["league"] == lg and ok(cl, True):
+                    add(cl); have[lg] = have.get(lg, 0) + 1
+        for strict in (True, False):          # 부족하면 점수순으로 채움 (마지막엔 매체 제한 해제)
+            for cl in clusters:
+                if len(picks) >= need:
+                    break
+                if ok(cl, strict):
+                    add(cl)
         picks.sort(key=lambda x: -x["score"])
 
         used = {x["slot"] for x in existing}

@@ -8,6 +8,7 @@ from email.utils import parsedate_to_datetime
 
 import config
 import db
+import quality
 
 
 def _clean(t):
@@ -54,7 +55,7 @@ def collect():
             league = feed.get("league")
             if feed.get("filter"):
                 league = classify(title + " " + snippet)
-            if not league:
+            if not league or quality.is_junk(title, source):
                 continue
             with db.conn() as c:
                 cur = c.execute(
